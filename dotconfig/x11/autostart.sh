@@ -6,17 +6,17 @@ interval=0
 
 # Existing functions
 pkg_updates() {
-  updates=$({ timeout 20 aptitude search '~U' 2>/dev/null || true; } | wc -l)  
+  updates="$(aptitude search '~u'| wc -l)"
 
-  if [ -z "$updates" ]; then
-    printf "^c$green^  Fully Updated "
+  if [ "$updates" = 0 ]; then
+    printf "^c$green^  fully updated "
   else
     printf "^c$green^  $updates"" updates "
   fi
 }
 
 mem() {
-  printf "^c$blue^^b$black^  " 
+  printf "^c$blue^^b$black^  "
   printf "^c$blue^ $(free -h | awk '/^Mem/ { print $3 }' | sed s/i//g)"
 }
 
@@ -49,14 +49,14 @@ bandwidth() {
     printf "^c$mint^⬇$rx_speed KB^c$mint^⬆$tx_speed KB "
 }
 
-volumeicon & 
+volumeicon &
 # ... (Rest of your existing functions: pkg_updates, mem, clock)
 
 while true; do
- # Existing updates 
+ # Existing updates
  [ $interval = 0 ] || [ $(($interval % 3600)) = 0 ] && updates=$(pkg_updates)
  interval=$((interval + 1))
 
  # Update status bar (adjust based on your status bar setup)
- sleep 1 && xsetroot -name "$updates $(bandwidth) $(mem) $(clock)" 
-done 
+ sleep 1 && xsetroot -name "$updates $(bandwidth) $(mem) $(clock)"
+done
