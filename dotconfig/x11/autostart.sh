@@ -1,62 +1,73 @@
 #!/bin/bash
-interval=0
 
-# Load colors
+# Color definitions (assuming you have a '~/nord' file for colors)
 . ~/nord
 
-# Existing functions
-pkg_updates() {
-  updates="$(aptitude search '~u'| wc -l)"
+# Update Interval (seconds)
+update_interval=3600
 
-  if [ "$updates" = 0 ]; then
+# --- FUNCTIONS ---
+
+# Package updates check (adjust if not using aptitude)
+pkg_updates() {
+  updates_available="$(aptitude search '~U' | wc -l)"  # More direct count
+
+  if [[ $updates_available -eq 0 ]]; then
     printf "^c$green^  fully updated "
   else
-    printf "^c$green^  $updates"" updates "
+    printf "^c$green^  $updates_available updates "
   fi
 }
 
+# Memory usage
 mem() {
   printf "^c$blue^^b$black^  "
   printf "^c$blue^ $(free -h | awk '/^Mem/ { print $3 }' | sed s/i//g)"
 }
 
+# Date and time
 clock() {
-	printf "^c$black^ ^b$darkblue^  "
-	printf "^c$black^^b$blue^ $(date '+%b %d - %H:%M') "
+  printf "^c$black^ ^b$darkblue^  "
+  printf "^c$black^^b$blue^ $(date '+%b %d - %H:%M') "
 }
 
-# Function to calculate bandwidth usage
+# Bandwidth calculation
 bandwidth() {
-    # Read network interface stats (adjust 'eth0' to your primary interface if needed)
-    old_rx=$(cat /proc/net/dev | grep 'ens33' | awk '{print $2}')
-    old_tx=$(cat /proc/net/dev | grep 'ens33' | awk '{print $10}')
+  interface="ens33"  # Adjust to your network interface
 
-    sleep 1 # One second interval
+  old_rx=$(awk "/$interface:/ {print \$2}" /proc/net/dev)
+  old_tx=$(awk "/$interface:/ {print \$10}" /proc/net/dev)
 
-    # Read new stats
-    new_rx=$(cat /proc/net/dev | grep 'ens33' | awk '{print $2}')
-    new_tx=$(cat /proc/net/dev | grep 'ens33' | awk '{print $10}')
+  sleep 1
+  new_rx=$(awk "/$interface:/ {print \$2}" /proc/net/dev)
+  new_tx=$(awk "/$interface:/ {print \$10}" /proc/net/dev)
 
-    # Calculate differences (in bytes)
-    rx_diff=$((new_rx - old_rx))
-    tx_diff=$((new_tx - old_tx))
+  rx_diff=$((new_rx - old_rx))
+  tx_diff=$((new_tx - old_tx))
 
-    # Convert to human-readable units (example: KB/s)
-    rx_speed=$(echo "scale=2; $rx_diff / 1024" | bc)
-    tx_speed=$(echo "scale=2; $tx_diff / 1024" | bc)
+  rx_speed=$(echo "scale=2; $rx_diff / 1024" | bc)
+  tx_speed=$(echo "scale=2; $tx_diff / 1024" | bc)
 
-    # Display bandwidth info
-    printf "^c$mint^⬇$rx_speed KB^c$mint^⬆$tx_speed KB "
+  printf "^c$mint^⬇$rx_speed KB^c$mint^⬆$tx_speed KB "
 }
 
 volumeicon &
-# ... (Rest of your existing functions: pkg_updates, mem, clock)
+# --- MAIN LOOP ---
+
+# Initial update check
+updates=$(pkg_updates)
 
 while true; do
- # Existing updates
- [ $interval = 0 ] || [ $(($interval % 3600)) = 0 ] && updates=$(pkg_updates)
- interval=$((interval + 1))
+  # Package updates at interval
+  if [[ $((`date +%s` % update_interval)) -eq 0 ]]; then
+      updates=$(pkg_updates)
+  fi
 
- # Update status bar (adjust based on your status bar setup)
- sleep 1 && xsetroot -name "$updates $(bandwidth) $(mem) $(clock)"
+  # Build status bar content
+  status_text="$updates $(bandwidth) $(mem) $(clock)"
+
+  # Update status bar (using xsetroot)
+  xsetroot -name "$status_text"
+
+  sleep 1
 done
